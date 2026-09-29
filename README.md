@@ -27,6 +27,58 @@ Model loop: Prefect pipeline -> MLflow registry (`champion` / `challenger` alias
 in `models/champion/` -> `model-promoted` event -> deploy workflow restarts the API.
 Code loop: push to `main` -> CI (ruff, pytest) -> images tagged with the commit SHA on GHCR -> deploy.
 
+## The data and how the tables connect
+
+Seven OULAD tables (32,593 student enrolments, 10.6M daily click rows). A student in one course
+presentation is identified by `code_module` + `code_presentation` + `id_student`.
+
+```mermaid
+erDiagram
+    student_info ||--|| registration : "module + presentation + student"
+    student_info ||--o{ student_vle : "module + presentation + student"
+    student_info ||--o{ student_assessment : "student (via assessment)"
+    student_vle }o--|| vle : "id_site"
+    student_assessment }o--|| assessments : "id_assessment"
+    assessments }o--|| courses : "module + presentation"
+    student_info }o--|| courses : "module + presentation"
+
+    student_info {
+        string code_module
+        string code_presentation
+        int id_student
+        string disability "audit only"
+        string final_result "label source"
+    }
+    registration {
+        int date_registration
+        int date_unregistration "withdrawal day"
+    }
+    student_vle {
+        int id_site
+        int date
+        int sum_click
+    }
+    vle {
+        int id_site
+        string activity_type
+    }
+    assessments {
+        int id_assessment
+        string assessment_type
+        int date "deadline"
+    }
+    student_assessment {
+        int id_assessment
+        int date_submitted
+        float score
+    }
+    courses {
+        string code_module
+        string code_presentation
+        int module_presentation_length
+    }
+```
+
 ## Tools used and why
 
 | Layer | Tool | Why it is here |
