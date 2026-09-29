@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: oulad
+resources:
+  - ../../base
+  - mlflow.yaml
+  - pipeline-cronjob.yaml
+images:
+  - name: oulad-api
+    newName: ghcr.io/__OWNER__/oulad-api
+    newTag: latest
+  - name: oulad-pipeline
+    newName: ghcr.io/__OWNER__/oulad-pipeline
+    newTag: latest
+  - name: oulad-mlflow
+    newName: ghcr.io/__OWNER__/oulad-mlflow
+    newTag: latest
+configMapGenerator:
+  - name: oulad-config
+    behavior: merge
+    literals:
+      - MODEL_URI=s3://__BUCKET__/models/champion
+      - DATA_URI=s3://__BUCKET__/data
+      - MODELS_URI=s3://__BUCKET__/models
+      - MLFLOW_TRACKING_URI=http://oulad-mlflow:5000
+      - AWS_DEFAULT_REGION=ca-central-1
+      - GITHUB_REPO=__OWNER__/oulad-mlops
+      - INJECT_DRIFT_AT=5
+  - name: mlflow-config
+    literals:
+      - MLFLOW_ARTIFACTS_DESTINATION=s3://__BUCKET__/mlflow
+      - AWS_DEFAULT_REGION=ca-central-1

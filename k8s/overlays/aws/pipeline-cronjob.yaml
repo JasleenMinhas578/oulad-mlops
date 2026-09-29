@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: oulad-pipeline
+spec:
+  schedule: "*/20 * * * *"
+  suspend: true                       # trigger runs by hand first; set false to replay automatically
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: pipeline
+              image: oulad-pipeline
+              imagePullPolicy: IfNotPresent
+              envFrom:
+                - configMapRef:
+                    name: oulad-config
+              env:
+                - name: GITHUB_DISPATCH_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: github-dispatch
+                      key: token
+                      optional: true
+              resources:
+                requests:
+                  cpu: 500m
+                  memory: 1Gi
+                limits:
+                  memory: 2Gi

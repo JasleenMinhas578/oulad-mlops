@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.egg-info/
+.env
+data/
+reports/
+mlflow.db
+mlartifacts/
+mlruns/
+artifacts/*
+!artifacts/.gitkeep
