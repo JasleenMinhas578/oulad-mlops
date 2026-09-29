@@ -27,17 +27,20 @@ Model loop: Prefect pipeline -> MLflow registry (`champion` / `challenger` alias
 in `models/champion/` -> `model-promoted` event -> deploy workflow restarts the API.
 Code loop: push to `main` -> CI (ruff, pytest) -> images tagged with the commit SHA on GHCR -> deploy.
 
-| Layer | Tool |
-| --- | --- |
-| Data | Parquet + DuckDB |
-| Model | LightGBM, grouped split, early stopping |
-| Tracking / registry | MLflow 2.x (SQLite + artifacts) |
-| Fairness | Fairlearn (`MetricFrame`) |
-| Drift | Own PSI + Evidently HTML report |
-| Orchestration | Prefect 3 |
-| Serving | FastAPI + Uvicorn in Docker |
-| Cluster | kind locally, k3s on one EC2 instance; Kustomize overlays |
-| CI/CD | GitHub Actions, GHCR, OIDC + SSM |
+## Tools used and why
+
+| Layer | Tool | Why it is here |
+| --- | --- | --- |
+| Data | Parquet + DuckDB | The click log has 10.6M rows (447 MB as CSV, 29 MB as Parquet). DuckDB aggregates it with SQL straight from disk, so it never has to fit in pandas memory, and no Spark cluster is needed. |
+| Features | pandas + SQL, cutoff at day 28 | Every feature uses only events before day 28, so the model cannot see the future (no target leakage). |
+| Model | LightGBM, grouped split, early stopping | Fast and accurate on tabular data, handles missing values natively ("never submitted" is a signal), and retrains in seconds. Splitting by student stops the same learner appearing in train and validation. |
+| Tracking / registry | MLflow 2.x | Records every run, metric and fairness audit, and keeps `champion` / `challenger` aliases so promotion and rollback are one call. |
+| Fairness | Fairlearn (`MetricFrame`) | Education decisions affect people. It measures recall per disability group and enforces a gap of at most 0.10 as a deployment gate. |
+| Drift | Own PSI + Evidently | Student behaviour changes between terms. PSI decides when to retrain; Evidently draws the readable report. |
+| Orchestration | Prefect 3 | Plain-Python pipeline with retries and logs, one batch per run, no Airflow scheduler or database to run. |
+| Serving | FastAPI + Uvicorn in Docker | Typed request validation, `/health` for Kubernetes probes, identical scores on any machine. |
+| Cluster | kind locally, k3s on one EC2 instance; Kustomize | Same manifests locally and on AWS, with rolling updates and no downtime, without paying for EKS. |
+| CI/CD | GitHub Actions, GHCR, OIDC + SSM | Tests and image builds on every push, and deploys with no stored AWS keys. |
 
 ## Results (produced by this repo, local run)
 
