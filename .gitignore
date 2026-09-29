@@ -9,3 +9,4 @@ mlartifacts/
 mlruns/
 artifacts/*
 !artifacts/.gitkeep
+sample.json
