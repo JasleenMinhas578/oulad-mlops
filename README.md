@@ -42,6 +42,32 @@ Code loop: push to `main` -> CI (ruff, pytest) -> images tagged with the commit 
 | Cluster | kind locally, k3s on one EC2 instance; Kustomize | Same manifests locally and on AWS, with rolling updates and no downtime, without paying for EKS. |
 | CI/CD | GitHub Actions, GHCR, OIDC + SSM | Tests and image builds on every push, and deploys with no stored AWS keys. |
 
+## New tools explained
+
+Short plain-language notes on each tool: what it is, and why it is used here.
+
+| Tool | What it is | Why it is used here |
+| --- | --- | --- |
+| **Parquet** | A file format for storing tables by column, compressed and with real data types. | The raw click CSV is 447 MB; as Parquet the whole dataset is 29 MB, loads faster, and `?` becomes a proper null. |
+| **DuckDB** | A Python package: point it at a file, ask a question in SQL, get the answer back. No server to run. | Sums 10.6M click rows into per-student features straight from disk, without loading them all into memory. |
+| **LightGBM** | A library that builds many small decision trees, each correcting the last. | Accurate on table data, trains in seconds, and treats missing values as a signal. |
+| **MLflow** | A tracker and catalogue for models: it stores every training run and its numbers. | Keeps model versions and the `champion` label, so promoting or rolling back a model is one call. |
+| **Fairlearn** | A library that measures how a model performs for different groups. | Checks recall for disabled vs non-disabled learners, and blocks a model if the gap is over 0.10. |
+| **PSI (Population Stability Index)** | A single number for how much a feature's distribution has shifted. Above 0.2 is a big shift. | Decides when student behaviour has changed enough to retrain the model. |
+| **Evidently** | A library that draws HTML reports comparing new data to old. | Gives a readable drift report per batch; the retrain decision does not depend on it. |
+| **Prefect** | A Python tool that runs steps in order, with retries and logs. | Runs one batch per run: score, check drift, retrain if needed, then apply the gates. |
+| **FastAPI** | A Python framework for web APIs that validates requests automatically. | Serves `/predict` and `/health`, and generates interactive docs at `/docs`. |
+| **Docker** | Packages code and its dependencies into an image that runs the same anywhere. | The API gave identical scores in the container and on my laptop. |
+| **GHCR (GitHub Container Registry)** | GitHub's storage for Docker images, like a library for built images. | Free for public repos, and the cluster can pull images from it without extra credentials. |
+| **Kubernetes** | A system that runs containers, keeps N copies alive, and replaces them safely. | Runs 2 API copies so a model update causes no downtime. |
+| **kind** | Kubernetes running inside Docker on a laptop. | Lets me test the cluster locally for free. |
+| **k3s** | A lightweight, certified Kubernetes that runs on one small server. | Runs the same manifests on one EC2 machine, avoiding the hourly fee of EKS. |
+| **Kustomize** | Built into `kubectl`; patches shared YAML per environment. | One base config, with small local and AWS overlays. |
+| **GitHub Actions** | GitHub's built-in automation that runs on every push. | Runs lint and tests, builds the images, and triggers deploys. |
+| **OIDC** | A way for GitHub to prove its identity to AWS with a short-lived token. | No AWS keys are stored in the repo, so there is nothing to leak. |
+| **SSM (AWS Systems Manager)** | AWS's way to run commands on a server without SSH. | The deploy workflow restarts the API on the instance without opening port 22. |
+| **S3** | AWS's file storage. | Holds data, models and reports so they survive if the instance is deleted. |
+
 ## Results (produced by this repo, local run)
 
 Training: 2013B + 2013J, 11,809 enrolled-at-day-28 rows, at-risk rate 0.444.
