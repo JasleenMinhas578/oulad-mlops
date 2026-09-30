@@ -5,6 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
+from dashboard import diagrams
 from oulad import storage
 from oulad.config import Settings
 from oulad.evaluate import fairness_audit
@@ -59,31 +60,6 @@ def outcome(rec: dict) -> str:
     return "Not better than champion"
 
 
-WORKFLOW = """
-digraph {
-  rankdir=LR; bgcolor="transparent";
-  node [shape=box, style="rounded,filled", fillcolor="#dbe7f5", fontcolor="#111", color="#5b7fa6"];
-  edge [color="#8899aa"];
-  batch [label="New batch\\n(one course, day 28)"];
-  feats [label="Features\\n(DuckDB, only events\\nbefore day 28)"];
-  score [label="Score with\\nchampion"];
-  drift [label="Drift check\\n(PSI per feature)"];
-  keep [label="Keep champion", fillcolor="#e6efe0"];
-  train [label="Retrain a\\nchallenger"];
-  gate [label="Gate: AUC >= champion\\nAND recall gap <= 0.10", fillcolor="#f7e3b5"];
-  promote [label="Promote to champion\\n(MLflow alias + S3)", fillcolor="#cfe8cf"];
-  park [label="Park as challenger", fillcolor="#f2cfcf"];
-  deploy [label="Deploy workflow\\nrestarts the API"];
-  batch -> feats -> score -> drift;
-  drift -> keep [label=" no drift"];
-  drift -> train [label=" drift or\\n AUC drop"];
-  train -> gate;
-  gate -> promote [label=" pass"];
-  gate -> park [label=" fail", style=dashed];
-  promote -> deploy;
-}
-"""
-
 try:
     state = get_state()
     bundle = get_champion()
@@ -105,13 +81,22 @@ c2.metric("Batches processed", f"{state['next_index']} of 13")
 c3.metric("Promotions", int((history["outcome"] == "Promoted").sum()))
 c4.metric("Blocked by fairness gate", int((history["outcome"] == "Blocked by fairness gate").sum()))
 
-tab_flow, tab_pred, tab_train, tab_drift = st.tabs(
-    ["How it works", "Live predictions", "Training history", "Drift and fairness"]
+(tab_flow, tab_arch, tab_docker, tab_deploy, tab_model, tab_pred, tab_train, tab_drift) = st.tabs(
+    [
+        "How it works",
+        "Kubernetes and architecture",
+        "Docker",
+        "Deployment",
+        "Why this model",
+        "Live predictions",
+        "Training history",
+        "Drift and fairness",
+    ]
 )
 
 with tab_flow:
     st.subheader("The pipeline, one batch at a time")
-    st.graphviz_chart(WORKFLOW, width="stretch")
+    st.graphviz_chart(diagrams.WORKFLOW, width="stretch")
     st.markdown(
         "- **Data:** 32,593 student enrolments and 10.6M daily click records (Open University, 2013-2014).\n"
         "- **Training:** the first model learns from 2013. 2014 is replayed as a live stream, "
@@ -120,6 +105,89 @@ with tab_flow:
         "- **Safety:** a new model ships only if it beats the champion on unseen data "
         "and keeps the recall gap between disability groups at 0.10 or less."
     )
+
+with tab_arch:
+    st.subheader("Where everything runs")
+    st.graphviz_chart(diagrams.ARCHITECTURE, width="stretch")
+    st.markdown(
+        "Everything runs on **one AWS server using k3s**, a lightweight Kubernetes. "
+        "It gives the same Kubernetes features as a managed cluster (EKS) without the hourly fee."
+    )
+    st.subheader("How Kubernetes is used here")
+    st.dataframe(diagrams.KUBERNETES_TABLE, width="stretch", hide_index=True)
+
+with tab_docker:
+    st.subheader("How Docker is used")
+    st.markdown(
+        "Docker packages code and its dependencies into an **image**, so the software runs the same "
+        "on my laptop, in CI and on AWS. This project builds **four images**, one per job."
+    )
+    st.graphviz_chart(diagrams.DOCKER_FLOW, width="stretch")
+    st.write("**The four images**")
+    st.dataframe(diagrams.DOCKER_IMAGES, width="stretch", hide_index=True)
+    st.write("**Practices used and why**")
+    st.dataframe(diagrams.DOCKER_PRACTICES, width="stretch", hide_index=True)
+    st.caption(
+        "Checked locally: the API container returned scores identical to the non-Docker run. "
+        "The API image is 747 MB when built with a model baked in."
+    )
+
+with tab_deploy:
+    st.subheader("How a change reaches production")
+    st.graphviz_chart(diagrams.DEPLOYMENT, width="stretch")
+    left, right = st.columns(2)
+    with left:
+        st.markdown(
+            "**Code release**\n"
+            "1. Push to `main`; tests and lint run.\n"
+            "2. Four images are built and tagged with the commit ID (never `latest`).\n"
+            "3. GitHub proves its identity to AWS with a short-lived token (OIDC), so no AWS keys are stored.\n"
+            "4. AWS Systems Manager runs `kubectl set image`; pods are replaced one at a time."
+        )
+    with right:
+        st.markdown(
+            "**Model release**\n"
+            "1. The pipeline retrains and the gate passes.\n"
+            "2. The new bundle is copied to `models/champion/` in S3.\n"
+            "3. A `model-promoted` event triggers the deploy workflow.\n"
+            "4. The API pods restart and load the new champion."
+        )
+    st.markdown(
+        f"**Right now:** champion is **v{bundle.version}**, served by 2 API replicas.  \n"
+        "**Rollback:** copy an older `models/vN/` over `champion/` and restart, or run "
+        "`kubectl rollout undo` for code."
+    )
+
+with tab_model:
+    st.subheader("What model is used, and why")
+    st.markdown(
+        f"The champion (v{bundle.version}) is a **LightGBM** gradient-boosted tree model. "
+        "It predicts whether a learner will fail or withdraw, using only behaviour before day 28. "
+        "**Disability is never an input.**"
+    )
+    st.dataframe(diagrams.MODEL_CHOICES, width="stretch", hide_index=True)
+    left, right = st.columns(2)
+    with left:
+        st.write("**What the model relies on most** (importance by gain)")
+        imp = pd.Series(
+            bundle.booster.feature_importance(importance_type="gain"),
+            index=bundle.booster.feature_name(),
+        ).sort_values(ascending=False).head(10)
+        st.bar_chart(imp.rename("importance"))
+        st.caption("Engagement and missed work lead the list: the model is learning disengagement.")
+    with right:
+        st.write("**Why day 28, and why not demographics**")
+        st.dataframe(diagrams.EXPERIMENTS, width="stretch", hide_index=True)
+        st.caption(
+            "Waiting longer improves accuracy but leaves less time to help. "
+            "Demographics add little accuracy and do not consistently narrow the fairness gap."
+        )
+    st.markdown(
+        "**Decision threshold:** tuned to catch 80% of at-risk learners, because missing a struggling "
+        "learner costs more than sending one extra check-in email."
+    )
+    st.write("**Tools and why**")
+    st.dataframe(diagrams.TOOLS, width="stretch", hide_index=True)
 
 with tab_pred:
     st.subheader("What the model predicts, and why")
