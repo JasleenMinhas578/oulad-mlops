@@ -32,7 +32,7 @@ jobs:
       packages: write
     strategy:
       matrix:
-        image: [api, pipeline, mlflow]
+        image: [api, pipeline, mlflow, dashboard]
     steps:
       - uses: actions/checkout@v4
       - name: Lowercase owner (GHCR names must be lowercase)

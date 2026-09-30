@@ -42,6 +42,7 @@ jobs:
             # New code: point the API and the pipeline at the image built for this commit.
             CMD="$K set image deployment/oulad-api api=ghcr.io/$OWNER/oulad-api:$SHA"
             CMD="$CMD && $K set image cronjob/oulad-pipeline pipeline=ghcr.io/$OWNER/oulad-pipeline:$SHA"
+            CMD="$CMD && $K set image deployment/oulad-dashboard dashboard=ghcr.io/$OWNER/oulad-dashboard:$SHA"
             CMD="$CMD && $K rollout status deployment/oulad-api --timeout=180s"
           fi
           jq -n --arg c "$CMD" '{commands: [$c]}' > params.json

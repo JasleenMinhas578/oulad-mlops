@@ -1,4 +1,7 @@
-.PHONY: data mlflow bootstrap api test lint run-batch images kind-up kind-deploy
+.PHONY: dashboard data mlflow bootstrap api test lint run-batch images kind-up kind-deploy
+
+dashboard:
+	streamlit run dashboard/app.py
 
 data:
 	python -m oulad.ingest --raw data/raw --out data/bronze

@@ -5,6 +5,7 @@ resources:
   - ../../base
   - mlflow.yaml
   - pipeline-cronjob.yaml
+  - dashboard.yaml
 images:
   - name: oulad-api
     newName: ghcr.io/jasleenminhas578/oulad-api
@@ -14,6 +15,9 @@ images:
     newTag: latest
   - name: oulad-mlflow
     newName: ghcr.io/jasleenminhas578/oulad-mlflow
+    newTag: latest
+  - name: oulad-dashboard
+    newName: ghcr.io/jasleenminhas578/oulad-dashboard
     newTag: latest
 configMapGenerator:
   - name: oulad-config
