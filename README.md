@@ -144,6 +144,26 @@ Replaying the 13 presentations of 2014 as a stream (drift injected at batch 5):
 | **Blocked by the fairness gate despite higher AUC** | 2 (`05_GGG_2014B`, `10_EEE_2014J`) |
 | Champion mean AUC / recall / recall gap on the stream | 0.752 / 0.771 / 0.048 |
 
+### Experiments: cutoff day and demographics
+
+Validation on 2013 (logged in MLflow, not registered). Waiting longer buys accuracy, and adding
+demographics gives a small AUC gain but does not consistently narrow the disability recall gap.
+
+| Cutoff day | Demographics | ROC AUC | Recall gap |
+| --- | --- | --- | --- |
+| 14 | off | 0.730 | 0.040 |
+| 14 | on | 0.752 | 0.031 |
+| 28 | off | 0.785 | 0.048 |
+| 28 | on | 0.798 | 0.057 |
+| 42 | off | 0.812 | 0.028 |
+| 42 | on | 0.819 | 0.046 |
+
+### AWS replay
+
+The same 13-batch replay ran on the k3s instance: 13 of 13 retrains triggered, 5 promotions
+(champion v1 to v11), and 2 challengers blocked by the fairness gate (`05_GGG_2014B`, `10_EEE_2014J`).
+Results differ slightly from the local run because model training is not identical across machines.
+
 Caveats: the drift monitor fires on every batch because each batch is a single module while the
 reference mixes several (`code_module` itself is excluded from the drift share, other features still
 differ by module). A per-module reference (Phase 5.5, fix 2) would be the next improvement. Small
