@@ -4,6 +4,8 @@ Flags learners at risk of failing or withdrawing four weeks into a course, retra
 behaviour drifts, and audits every model for fairness toward learners who declared a disability.
 Free, open-source tools throughout; AWS is used only for hosting.
 
+**Live dashboard:** https://oulad-mlops.streamlit.app/ (results, live prediction explorer, and how it is built and deployed)
+
 ## Why it matters
 
 Learners who fail an online course usually go quiet weeks before a bad grade appears. Disabled
