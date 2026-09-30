@@ -1,194 +1,163 @@
-"""Graphviz diagrams and explanatory tables shown in the dashboard."""
+"""Simple diagrams and small tables shown in the dashboard. Every figure quoted here was measured."""
 from __future__ import annotations
 
 import pandas as pd
 
 _STYLE = """
-  rankdir=LR; bgcolor="transparent"; fontcolor="#8899aa"; fontsize=12;
+  rankdir=LR; bgcolor="transparent"; fontcolor="#8899aa"; fontsize=13; nodesep=0.4;
   node [shape=box, style="rounded,filled", fillcolor="#dbe7f5", fontcolor="#111", color="#5b7fa6"];
   edge [color="#8899aa", fontcolor="#8899aa"];
 """
 
 WORKFLOW = "digraph {" + _STYLE + """
-  batch [label="New batch\\n(one course, day 28)"];
-  feats [label="Features\\n(DuckDB, only events\\nbefore day 28)"];
-  score [label="Score with\\nchampion"];
-  drift [label="Drift check\\n(PSI per feature)"];
-  keep [label="Keep champion", fillcolor="#e6efe0"];
-  train [label="Retrain a\\nchallenger"];
-  gate [label="Gate: AUC >= champion\\nAND recall gap <= 0.10", fillcolor="#f7e3b5"];
-  promote [label="Promote to champion\\n(MLflow alias + S3)", fillcolor="#cfe8cf"];
-  park [label="Park as challenger", fillcolor="#f2cfcf"];
-  deploy [label="Deploy workflow\\nrestarts the API"];
-  batch -> feats -> score -> drift;
-  drift -> keep [label=" no drift"];
-  drift -> train [label=" drift or\\n AUC drop"];
-  train -> gate;
-  gate -> promote [label=" pass"];
-  gate -> park [label=" fail", style=dashed];
-  promote -> deploy;
+  a [label="1. A new course batch\\narrives"];
+  b [label="2. Turn each student's\\nfirst 28 days into numbers"];
+  c [label="3. Score every student\\nwith the current model"];
+  d [label="4. Has behaviour\\nchanged a lot?", fillcolor="#f7e3b5"];
+  keep [label="No: keep the\\ncurrent model", fillcolor="#e6efe0"];
+  e [label="Yes: train a\\nnew model"];
+  f [label="5. Ship it only if it is\\nmore accurate AND fair", fillcolor="#f7e3b5"];
+  ok [label="Passes: new model\\ngoes live", fillcolor="#cfe8cf"];
+  no [label="Fails: keep the\\nold model", fillcolor="#f2cfcf"];
+  a -> b -> c -> d;
+  d -> keep [label=" no"];
+  d -> e [label=" yes"];
+  e -> f;
+  f -> ok [label=" yes"];
+  f -> no [label=" no"];
 }
 """
 
 ARCHITECTURE = "digraph {" + _STYLE + """
-  user [label="Browser / LMS\\n(instructor, dashboard)", fillcolor="#efe6d0"];
+  user [label="You / an instructor\\n(web browser)", fillcolor="#efe6d0"];
   subgraph cluster_aws {
-    label="AWS, ca-central-1"; color="#8899aa";
-    s3 [label="S3 bucket\\ndata, models/champion,\\nreports, pipeline state", fillcolor="#e9dff2"];
+    label="Amazon Web Services (Canada region)"; color="#8899aa";
+    s3 [label="S3: file storage\\ndata, models, results", fillcolor="#e9dff2"];
     subgraph cluster_k3s {
-      label="One EC2 instance running k3s (Kubernetes), namespace 'oulad'"; color="#5b7fa6";
-      svc [label="Services (NodePort)\\n30080 API, 30501 dashboard"];
-      api [label="Deployment: oulad-api\\n2 replicas + health probes"];
-      dash [label="Deployment: oulad-dashboard"];
-      mlflow [label="Deployment: oulad-mlflow\\n+ volume for its database"];
-      cron [label="CronJob: oulad-pipeline\\none batch per run", fillcolor="#f7e3b5"];
+      label="One server running Kubernetes (k3s)"; color="#5b7fa6";
+      api [label="API\\n2 copies"];
+      dash [label="This dashboard"];
+      mlflow [label="MLflow\\nrun history"];
+      cron [label="Pipeline job\\ntrains models", fillcolor="#f7e3b5"];
     }
   }
-  user -> svc; svc -> api; svc -> dash;
-  api -> s3 [label=" loads champion"];
+  user -> api [label=" asks for scores"];
+  user -> dash;
+  api -> s3 [label=" loads model"];
   dash -> s3 [label=" reads results"];
-  cron -> mlflow [label=" logs runs,\\n moves alias"];
-  cron -> s3 [label=" writes champion,\\n reports, state"];
+  cron -> mlflow [label=" records runs"];
+  cron -> s3 [label=" saves new model"];
+}
+"""
+
+DOCKER_FLOW = "digraph {" + _STYLE + """
+  a [label="Dockerfile\\n(a recipe for one\\nimage)"];
+  b [label="GitHub builds it\\nafter tests pass"];
+  c [label="Stored in GHCR\\n(image library)\\ntagged with commit ID", fillcolor="#e9dff2"];
+  d [label="The server downloads\\nthe image and\\nruns it", fillcolor="#cfe8cf"];
+  a -> b -> c -> d;
 }
 """
 
 DEPLOYMENT = "digraph {" + _STYLE + """
   subgraph cluster_code {
-    label="Code loop: new software"; color="#5b7fa6";
-    push [label="git push\\nto main"];
-    ci [label="GitHub Actions ci\\nruff + pytest"];
-    build [label="Build 4 images\\ntagged with commit SHA"];
-    ghcr [label="GHCR\\n(container registry)", fillcolor="#e9dff2"];
-    push -> ci -> build -> ghcr;
+    label="New CODE"; color="#5b7fa6";
+    a [label="Push code\\nto GitHub"];
+    b [label="Tests run,\\nimages are built"];
+    a -> b;
   }
   subgraph cluster_model {
-    label="Model loop: new model"; color="#6aa06a";
-    promote [label="Pipeline promotes\\na new champion", fillcolor="#cfe8cf"];
-    s3 [label="Bundle copied to\\nS3 models/champion", fillcolor="#e9dff2"];
-    event [label="'model-promoted'\\nGitHub event"];
-    promote -> s3 -> event;
+    label="New MODEL"; color="#6aa06a";
+    m1 [label="Pipeline promotes\\na better model"];
+    m2 [label="Model file saved\\nin S3"];
+    m1 -> m2;
   }
-  deploy [label="deploy workflow\\n(OIDC: no stored AWS keys)", fillcolor="#f7e3b5"];
-  ssm [label="AWS SSM\\nRun Command"];
-  k3s [label="k3s on EC2:\\nrolling update, 2 pods,\\nno downtime", fillcolor="#cfe8cf"];
-  ghcr -> deploy [label=" ci succeeded"];
-  event -> deploy;
-  deploy -> ssm -> k3s;
-}
-"""
-
-KUBERNETES_TABLE = pd.DataFrame(
-    [
-        ("Deployment", "oulad-api", "Keeps 2 copies of the API running and replaces them one at a time on updates.",
-         "Zero-downtime model and code updates; if a new pod cannot load its model it never becomes ready."),
-        ("Service (NodePort)", "oulad-api :30080", "One stable address that spreads requests across ready pods.",
-         "Pods come and go; callers use a single address."),
-        ("Readiness probe", "/health", "Sends traffic to a pod only after the model has loaded.",
-         "A broken new version never receives requests."),
-        ("Liveness probe", "/health", "Restarts a pod that stops answering.", "Self-healing."),
-        ("CronJob", "oulad-pipeline", "Runs the retraining pipeline for one batch per run.",
-         "Uses what the cluster already has instead of a separate scheduler."),
-        ("Deployment + volume", "oulad-mlflow", "Experiment tracker and model registry, with its own disk.",
-         "Keeps run history and the champion label across restarts."),
-        ("ConfigMap", "oulad-config", "Environment settings (S3 paths, thresholds).",
-         "Same image runs locally and on AWS; only settings change."),
-        ("Kustomize overlays", "base, local, aws", "One shared config with small per-environment changes.",
-         "Same manifests tested on kind (laptop) and run on k3s (AWS)."),
-    ],
-    columns=["Kubernetes object", "Name here", "What it does", "Why it is used"],
-)
-
-_LGBM = (
-    "Fast, accurate on tables, handles missing values natively ('never submitted' becomes "
-    "a signal), and retrains in seconds, so retraining on drift is cheap."
-)
-_LOGREG = (
-    "Simple and explainable, a useful baseline, but cannot capture "
-    "interactions like 'active early but now silent'."
-)
-
-MODEL_CHOICES = pd.DataFrame(
-    [
-        ("LightGBM (chosen)", _LGBM),
-        ("XGBoost", "Similar accuracy, slower to retrain, no benefit here."),
-        ("Logistic regression", _LOGREG),
-        ("Neural network", "Needs more data and tuning, and is harder to explain to instructors."),
-    ],
-    columns=["Model", "Why / why not"],
-)
-
-EXPERIMENTS = pd.DataFrame(
-    [
-        (14, "off", 0.730, 0.040), (14, "on", 0.752, 0.031),
-        (28, "off", 0.785, 0.048), (28, "on", 0.798, 0.057),
-        (42, "off", 0.812, 0.028), (42, "on", 0.819, 0.046),
-    ],
-    columns=["Cutoff day", "Demographics", "ROC AUC", "Recall gap"],
-)
-
-TOOLS = pd.DataFrame(
-    [
-        ("Parquet + DuckDB", "10.6M click rows summed to per-student features from disk, no cluster needed."),
-        ("LightGBM", "The prediction model."),
-        ("MLflow", "Records every training run and keeps the champion label."),
-        ("Fairlearn", "Measures recall for disabled vs non-disabled learners and gates releases."),
-        ("PSI + Evidently", "Detects when student behaviour has shifted; triggers retraining."),
-        ("Prefect", "Runs the pipeline steps with retries and logs."),
-        ("FastAPI + Docker", "Serves predictions; identical scores on any machine."),
-        ("Kubernetes (k3s)", "Keeps services running and updates them without downtime."),
-        ("GitHub Actions + OIDC + SSM", "Tests, builds and deploys with no stored AWS keys."),
-        ("S3", "Durable storage for data, models and reports."),
-    ],
-    columns=["Tool", "Role in this project"],
-)
-
-DOCKER_FLOW = "digraph {" + _STYLE + """
-  subgraph cluster_local {
-    label="On my laptop"; color="#5b7fa6";
-    df [label="4 Dockerfiles\napi, pipeline,\nmlflow, dashboard"];
-    run [label="docker build + run\nscores identical to\nnon-Docker run", fillcolor="#e6efe0"];
-    df -> run;
-  }
-  subgraph cluster_ci {
-    label="GitHub Actions (on every push to main)"; color="#6aa06a";
-    test [label="ruff + pytest\nmust pass first"];
-    build [label="docker buildx\n4 images in parallel\nlayer cache reused"];
-    test -> build;
-  }
-  ghcr [label="GHCR registry\nghcr.io/<owner>/oulad-*\ntags: commit SHA, latest", fillcolor="#e9dff2"];
-  k3s [label="k3s on EC2 pulls the\nSHA-tagged image and\nstarts pods", fillcolor="#cfe8cf"];
-  df -> test [label=" git push"];
-  build -> ghcr -> k3s;
+  gh [label="GitHub deploy job\\n(short-lived AWS\\naccess, no stored keys)", fillcolor="#f7e3b5"];
+  srv [label="Server updates the\\nAPI pods one at a time\\n(no downtime)", fillcolor="#cfe8cf"];
+  b -> gh; m2 -> gh [label=" sends an event"];
+  gh -> srv;
 }
 """
 
 DOCKER_IMAGES = pd.DataFrame(
     [
-        ("oulad-api", "docker/api.Dockerfile",
-         "FastAPI + LightGBM only. No MLflow or training libraries.", "8000",
-         "Small and fast to start. Loads the champion from S3 at startup, so a new model needs no rebuild."),
-        ("oulad-pipeline", "docker/pipeline.Dockerfile",
-         "pandas, DuckDB, LightGBM, MLflow, Prefect, Fairlearn, Evidently.", "none (a job)",
-         "Runs `python -m pipelines.flow` once per batch as a Kubernetes CronJob, then exits."),
-        ("oulad-mlflow", "docker/mlflow.Dockerfile",
-         "MLflow server + boto3, SQLAlchemy pinned below 2.1.", "5000",
-         "The experiment tracker and model registry, kept separate so it can be upgraded on its own."),
-        ("oulad-dashboard", "docker/dashboard.Dockerfile",
-         "Streamlit + LightGBM + Fairlearn.", "8501",
-         "This page. Read-only: it only reads results from S3."),
+        ("oulad-api", "Answers score requests.", "Smallest: no training tools inside (747 MB)."),
+        ("oulad-pipeline", "Trains and checks models, one batch per run.", "Has all the training tools."),
+        ("oulad-mlflow", "Keeps the history of every training run.", "Separate, so it can be upgraded alone."),
+        ("oulad-dashboard", "This page.", "Read-only; only reads results (1.15 GB)."),
     ],
-    columns=["Image", "Built from", "What is inside", "Port", "Why it is a separate image"],
+    columns=["Image", "What it does", "Why separate"],
 )
 
 DOCKER_PRACTICES = pd.DataFrame(
     [
-        ("python:3.11-slim base", "Small image; includes libgomp1, which LightGBM needs."),
-        ("Dependencies copied before code", "Docker caches layers, so a code edit rebuilds in seconds, not minutes."),
-        ("Separate requirements per image", "The API image stays slim: it never installs training libraries."),
-        ("Runs as non-root user", "Least privilege: a compromised container cannot act as root."),
-        ("Settings from environment variables", "The same image runs on a laptop and on AWS; only settings change."),
-        ("Tags are commit SHAs, not `latest`", "You always know exactly what runs, and can roll back to any commit."),
-        (".dockerignore", "Keeps data, the virtual env and secrets out of every image."),
+        ("Install libraries before copying code", "Editing code rebuilds in seconds, not minutes."),
+        ("Run as a normal user, not root", "A hacked container has less power."),
+        ("Tag images with the commit ID", "You know exactly what is running and can roll back."),
+        ("Settings come from environment variables", "The same image runs on a laptop and on AWS."),
     ],
     columns=["Practice", "Why"],
 )
+
+KUBERNETES_TABLE = pd.DataFrame(
+    [
+        ("API Deployment", "Keeps 2 copies of the API running and replaces them one at a time on updates."),
+        ("Health checks", "A new copy gets traffic only after its model has loaded, so a broken version never serves users."),
+        ("Service", "One fixed address that spreads requests over the copies."),
+        ("CronJob", "Runs the training pipeline once per batch (currently paused; I ran the 13 batches by hand)."),
+        ("Kustomize", "One shared config with small differences for laptop (kind) and AWS (k3s)."),
+    ],
+    columns=["Kubernetes piece", "What it does here"],
+)
+
+MODEL_CHOICES = pd.DataFrame(
+    [
+        ("LightGBM (used)", "0.785", "Handles missing values itself and trains in under 1 second."),
+        ("Logistic regression", "0.782", "Nearly as good and simpler to explain (measured on the same split)."),
+        ("XGBoost, neural network", "not tested", "Not compared in this project."),
+    ],
+    columns=["Model", "Accuracy (AUC)", "Note"],
+)
+
+EXPERIMENTS = pd.DataFrame(
+    [
+        (14, "no", 0.730, 0.040), (14, "yes", 0.752, 0.031),
+        (28, "no", 0.785, 0.048), (28, "yes", 0.798, 0.057),
+        (42, "no", 0.812, 0.028), (42, "yes", 0.819, 0.046),
+    ],
+    columns=["Prediction day", "Uses demographics", "Accuracy (AUC)", "Fairness gap"],
+)
+
+FEATURE_NAMES = {
+    "mean_score": "Average assessment score",
+    "n_missed": "Assessments missed",
+    "n_submitted": "Assessments submitted",
+    "n_due": "Assessments due so far",
+    "n_late": "Late submissions",
+    "mean_days_early": "How early work is handed in",
+    "score_trend": "Score trend",
+    "active_days": "Days active",
+    "clicks_total": "Total clicks",
+    "clicks_last_7d": "Clicks in the last 7 days",
+    "clicks_prev_7d": "Clicks in the 7 days before that",
+    "click_trend": "Activity trend",
+    "days_since_last_active": "Days since last active",
+    "never_active": "Never active",
+    "clicks_pre_start": "Clicks before the course started",
+    "date_registration": "When they registered",
+    "num_of_prev_attempts": "Previous attempts",
+    "studied_credits": "Credits being studied",
+    "code_module": "Course",
+    "clicks_oucontent": "Clicks on course content",
+    "clicks_forumng": "Clicks in forums",
+    "clicks_quiz": "Clicks on quizzes",
+    "clicks_homepage": "Clicks on the homepage",
+    "clicks_resource": "Clicks on resources",
+    "clicks_subpage": "Clicks on sub-pages",
+    "clicks_url": "Clicks on links",
+    "clicks_other": "Clicks on other pages",
+}
+
+
+def nice(name: str) -> str:
+    return FEATURE_NAMES.get(name, name.replace("_", " ").capitalize())

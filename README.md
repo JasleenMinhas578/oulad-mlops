@@ -120,6 +120,35 @@ Short plain-language notes on each tool: what it is, and why it is used here.
 | **SSM (AWS Systems Manager)** | AWS's way to run commands on a server without SSH. | The deploy workflow restarts the API on the instance without opening port 22. |
 | **S3** | AWS's file storage. | Holds data, models and reports so they survive if the instance is deleted. |
 
+## Concrete outcome
+
+Measured on the 12 real 2014 batches (14,933 learners, each scored by the champion of that moment before
+its outcome was known; batch 5 had a simulated outage and is excluded). Reproduced by `oulad.outcomes`
+and shown on the dashboard.
+
+| Result | Value |
+| --- | --- |
+| At-risk learners caught (recall) | 81.5% |
+| Learners flagged for outreach | 62.2% (24% fewer than a random list reaching the same 81.5%) |
+| Flagged learners who really fail or withdraw (precision) | 57.8%, against 44.2% of all learners |
+| Disabled vs other learners caught | 84.1% vs 81.1% (no under-serving) |
+| Accuracy on unseen 2014 batches (mean AUC) | 0.759 (validation on 2013: 0.785) |
+
+**Honest findings**
+
+- Automatic retraining did **not** measurably improve accuracy: the never-retrained first model scored
+  0.758 AUC on the same batches. The pipeline's value is governance: no model ships without passing
+  accuracy and fairness checks (it blocked 2 challengers that were more accurate but less fair).
+- A logistic regression baseline scored 0.782 AUC vs 0.785 for LightGBM (`scripts/baseline.py`), so the
+  model type matters little; the inputs matter more. The model relies mostly on assessment scores and
+  missed assessments, then on activity.
+- The drift alarm fired on all 13 batches, so it is too sensitive as built (probably needs a per-course reference).
+
+## Dashboard
+
+`make dashboard` (or the Docker image `oulad-dashboard`) shows the results first, then a live prediction
+explorer, the workflow, the Docker, Kubernetes and deployment setup, and model monitoring.
+
 ## Results (produced by this repo, local run)
 
 Training: 2013B + 2013J, 11,809 enrolled-at-day-28 rows, at-risk rate 0.444.
