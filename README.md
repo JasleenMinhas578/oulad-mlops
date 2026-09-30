@@ -196,8 +196,13 @@ demographics gives a small AUC gain but does not consistently narrow the disabil
 
 ### AWS replay
 
-The AWS instance ran an earlier version of the pipeline, before the drift alarm fix, so its history
-differs (13 of 13 retrains). It will be re-run with the fixed pipeline; the numbers above are from the local run.
+The same 13-batch replay ran on the AWS k3s server with the fixed pipeline. It behaved like the local run:
+5 of 13 batches triggered a retrain, and the simulated outage in batch 5 was caught by the activity rule.
+Differences come from training not being bit-identical across machines: 2 promotions (batches 05 and 09,
+the first of them decided on the simulated-outage batch), none blocked by the fairness gate, final champion v5.
+Headline results on the AWS data (12 real batches): 82% of at-risk learners caught, 63% flagged
+(23% fewer than a random list), 57% precision, disabled vs other learners caught 84% vs 82%, mean AUC 0.759.
+The public Streamlit dashboard shows the local run's snapshot; the AWS dashboard shows the AWS run.
 
 Docker check: the container returns scores identical to the local run; image size 747 MB.
 
