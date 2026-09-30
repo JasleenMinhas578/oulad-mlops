@@ -10,6 +10,9 @@ import pandas as pd
 
 log = logging.getLogger(__name__)
 EPS = 1e-4
+# Activity volume: a collapse here is the signature of an outage, and it is stable on healthy batches.
+VOLUME_FEATURES = ("clicks_total", "active_days")
+MIN_COURSE_ROWS = 200
 
 
 def _psi(p: np.ndarray, q: np.ndarray) -> float:
@@ -67,8 +70,24 @@ def detect_drift(
     }
 
 
+def reference_for_course(
+    reference: pd.DataFrame, current: pd.DataFrame, min_rows: int = MIN_COURSE_ROWS
+) -> tuple[pd.DataFrame, str]:
+    """Reference rows from the same course as `current`, so a single-course batch is compared
+    with like. Falls back to the full reference when the course was never seen in training."""
+    same = reference[reference["code_module"].isin(current["code_module"].unique())]
+    if len(same) >= min_rows:
+        return same, "same course"
+    return reference, "no reference for this course"
+
+
+def activity_outage(psi: dict[str, float], threshold: float) -> list[str]:
+    """Volume features whose distribution moved more than the threshold."""
+    return sorted(f for f in VOLUME_FEATURES if f in psi and not np.isnan(psi[f]) and psi[f] > threshold)
+
+
 def simulate_engagement_drop(
-    df: pd.DataFrame, share: float = 0.4, factor: float = 0.3, seed: int = 0
+    df: pd.DataFrame, share: float = 0.6, factor: float = 0.2, seed: int = 0
 ) -> pd.DataFrame:
     """Inject a known shift: a share of students lose most of their recent activity,
     as if the VLE had an outage. Used to prove the monitor fires."""

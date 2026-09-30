@@ -11,7 +11,13 @@ from prefect import flow, get_run_logger, task
 from oulad import registry, storage
 from oulad.config import Settings
 from oulad.data import KEYS, local_bronze
-from oulad.drift import detect_drift, evidently_report_html, simulate_engagement_drop
+from oulad.drift import (
+    activity_outage,
+    detect_drift,
+    evidently_report_html,
+    reference_for_course,
+    simulate_engagement_drop,
+)
 from oulad.evaluate import (
     classification_metrics,
     fairness_audit,
@@ -50,10 +56,11 @@ def notify_deploy(s: Settings, version: str) -> None:
 @task(retries=2, retry_delay_seconds=10)
 def ingest(s: Settings, module: str, term: str, index: int, batch_id: str) -> pd.DataFrame:
     df = build_features(local_bronze(s.data_uri), s.cutoff_day, [(module, term)])
+    # Store the clean data: later retraining must learn from real behaviour, never from the fake outage.
+    storage.write_parquet(df, _uri(s, "processed", f"{batch_id}.parquet"))
     if os.getenv("INJECT_DRIFT_AT") == str(index):
         get_run_logger().warning("Injecting a synthetic engagement drop into %s", batch_id)
-        df = simulate_engagement_drop(df)
-    storage.write_parquet(df, _uri(s, "processed", f"{batch_id}.parquet"))
+        df = simulate_engagement_drop(df)  # only this batch's scoring and drift check see it
     return df
 
 
@@ -82,10 +89,14 @@ def check_drift(
     batch_id: str,
 ) -> dict:
     cats = [c for c in categorical if c not in DRIFT_EXCLUDE]
-    report = detect_drift(reference, current, numeric, cats, s.psi_threshold)
-    report["audit_psi"] = detect_drift(reference, current, [], AUDIT_COLUMNS, s.psi_threshold)["psi"]
+    # Compare a single-course batch with the same course's training data, not a mix of courses.
+    ref, scope = reference_for_course(reference, current)
+    report = detect_drift(ref, current, numeric, cats, s.psi_threshold)
+    report["reference_scope"] = scope
+    report["activity_outage"] = activity_outage(report["psi"], s.psi_threshold)
+    report["audit_psi"] = detect_drift(ref, current, [], AUDIT_COLUMNS, s.psi_threshold)["psi"]
     storage.write_json(report, _uri(s, "reports", batch_id, "drift.json"))
-    html = evidently_report_html(reference[numeric + cats], current[numeric + cats])
+    html = evidently_report_html(ref[numeric + cats], current[numeric + cats])
     if html:
         storage.write_bytes(_uri(s, "reports", batch_id, "evidently.html"), html)
     return report
@@ -176,7 +187,14 @@ def run_next_batch() -> dict:
     champ_metrics, champ_audit = score_champion(s, champion, current, batch_id)
     drift = check_drift(s, reference, current, numeric, categorical, batch_id)
 
-    drift_trigger = drift["drift_share"] >= s.drift_share_threshold
+    reasons = []
+    if drift["drift_share"] >= s.drift_share_threshold:
+        reasons.append("many inputs shifted")
+    if drift["activity_outage"]:
+        reasons.append("activity outage")
+    if drift["reference_scope"] != "same course":
+        reasons.append("new course")
+    drift_trigger = bool(reasons)
     perf_trigger = bool(state["baseline_auc"] - champ_metrics["roc_auc"] >= s.auc_drop_threshold)
     record = {
         "batch": batch_id, "rows": len(current),
@@ -185,6 +203,7 @@ def run_next_batch() -> dict:
         "champion_recall": champ_metrics["recall"],
         "champion_recall_gap": champ_audit["recall_gap"],
         "drift_trigger": drift_trigger, "perf_trigger": perf_trigger,
+        "trigger_reasons": reasons + (["accuracy drop"] if perf_trigger else []),
     }
     if drift_trigger or perf_trigger:
         outcome = retrain_and_gate(s, state, schedule, i, current, champ_metrics, batch_id)

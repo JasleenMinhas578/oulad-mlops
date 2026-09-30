@@ -1,0 +1,53 @@
+{
+  "psi": {
+    "clicks_total": 0.0459,
+    "active_days": 0.0169,
+    "clicks_pre_start": 0.0117,
+    "clicks_last_7d": 0.4691,
+    "clicks_prev_7d": 0.1399,
+    "click_trend": 0.4612,
+    "days_since_last_active": 0.0928,
+    "never_active": 0.0,
+    "clicks_oucontent": 0.049,
+    "clicks_forumng": 0.0538,
+    "clicks_homepage": 0.0388,
+    "clicks_quiz": 0.0,
+    "clicks_resource": 0.0082,
+    "clicks_subpage": 0.4616,
+    "clicks_url": 0.7254,
+    "clicks_other": 0.5411,
+    "n_due": 2.5073,
+    "n_submitted": 1.0407,
+    "n_missed": 0.0565,
+    "n_late": 0.4617,
+    "mean_score": 0.0491,
+    "score_trend": 1.0513,
+    "mean_days_early": 0.5815,
+    "date_registration": 0.1038,
+    "num_of_prev_attempts": 0.0001,
+    "studied_credits": 0.0034
+  },
+  "drifted": [
+    "click_trend",
+    "clicks_last_7d",
+    "clicks_other",
+    "clicks_subpage",
+    "clicks_url",
+    "mean_days_early",
+    "n_due",
+    "n_late",
+    "n_submitted",
+    "score_trend"
+  ],
+  "drift_share": 0.38461538461538464,
+  "n_features": 26,
+  "reference_scope": "same course",
+  "activity_outage": [],
+  "audit_psi": {
+    "disability": 0.0001,
+    "gender": 0.0002,
+    "age_band": 0.0006,
+    "region": 0.0136,
+    "imd_band": 0.011
+  }
+}

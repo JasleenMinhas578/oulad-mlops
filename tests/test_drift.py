@@ -57,3 +57,28 @@ def test_injected_engagement_drop_is_caught():
         df, simulate_engagement_drop(df), ["clicks_total", "clicks_last_7d"], [], 0.2
     )
     assert "clicks_total" in rep["drifted"]
+
+
+def test_reference_uses_same_course_when_available():
+    from oulad.drift import reference_for_course
+
+    ref = pd.DataFrame({"code_module": ["A"] * 300 + ["B"] * 300, "x": range(600)})
+    cur = pd.DataFrame({"code_module": ["A"] * 10, "x": range(10)})
+    used, scope = reference_for_course(ref, cur)
+    assert scope == "same course" and set(used["code_module"]) == {"A"}
+
+
+def test_reference_falls_back_for_new_course():
+    from oulad.drift import reference_for_course
+
+    ref = pd.DataFrame({"code_module": ["A"] * 300, "x": range(300)})
+    cur = pd.DataFrame({"code_module": ["Z"] * 10, "x": range(10)})
+    used, scope = reference_for_course(ref, cur)
+    assert scope == "no reference for this course" and len(used) == 300
+
+
+def test_activity_outage_only_reports_volume_features():
+    from oulad.drift import activity_outage
+
+    psi = {"clicks_total": 0.5, "active_days": 0.1, "clicks_quiz": 0.9}
+    assert activity_outage(psi, 0.2) == ["clicks_total"]

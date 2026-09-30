@@ -128,21 +128,27 @@ and shown on the dashboard.
 
 | Result | Value |
 | --- | --- |
-| At-risk learners caught (recall) | 81.5% |
-| Learners flagged for outreach | 62.2% (24% fewer than a random list reaching the same 81.5%) |
-| Flagged learners who really fail or withdraw (precision) | 57.8%, against 44.2% of all learners |
-| Disabled vs other learners caught | 84.1% vs 81.1% (no under-serving) |
+| At-risk learners caught (recall) | 81.2% |
+| Learners flagged for outreach | 61.9% (24% fewer than a random list reaching the same 81.2%) |
+| Flagged learners who really fail or withdraw (precision) | 58.0%, against 44.2% of all learners |
+| Disabled vs other learners caught | 83.3% vs 80.9% (no under-serving) |
 | Accuracy on unseen 2014 batches (mean AUC) | 0.759 (validation on 2013: 0.785) |
 
 **Honest findings**
 
 - Automatic retraining did **not** measurably improve accuracy: the never-retrained first model scored
   0.758 AUC on the same batches. The pipeline's value is governance: no model ships without passing
-  accuracy and fairness checks (it blocked 2 challengers that were more accurate but less fair).
+  accuracy and fairness checks. Over the replay it retrained 5 times, promoted 1 model, and blocked 2
+  challengers that were more accurate but failed the fairness gate (one of them on the simulated-outage batch).
 - A logistic regression baseline scored 0.782 AUC vs 0.785 for LightGBM (`scripts/baseline.py`), so the
   model type matters little; the inputs matter more. The model relies mostly on assessment scores and
   missed assessments, then on activity.
-- The drift alarm fired on all 13 batches, so it is too sensitive as built (probably needs a per-course reference).
+- The first drift alarm compared each single course with a mix of courses and fired on all 13 batches.
+  Comparing with the same course's training data fixed that (5 of 13 batches now trigger a retrain), and a
+  separate activity-volume rule catches the simulated outage. Measured: on healthy batches the volume
+  shift stays below 0.17 (limit 0.2), while a realistic outage scores 0.29 to 1.3.
+- The drift alarm was tuned on this same replay, so treat its numbers as a fitted design, not an independent test.
+
 
 ## Dashboard
 
@@ -163,15 +169,14 @@ Training: 2013B + 2013J, 11,809 enrolled-at-day-28 rows, at-risk rate 0.444.
 | Recall, disability = N (n = 2117) | 0.795 |
 | Recall gap | 0.048 |
 
-Replaying the 13 presentations of 2014 as a stream (drift injected at batch 5):
+Replaying the 13 presentations of 2014 as a stream (simulated outage injected at batch 5):
 
 | Outcome | Batches |
 | --- | --- |
-| Retrain triggered | 13 of 13 (drift share was 0.38 to 0.89 on every batch) |
-| Challenger promoted | 7 |
-| Challenger did not beat the champion | 4 |
-| **Blocked by the fairness gate despite higher AUC** | 2 (`05_GGG_2014B`, `10_EEE_2014J`) |
-| Champion mean AUC / recall / recall gap on the stream | 0.752 / 0.771 / 0.048 |
+| Retrain triggered | 5 of 13 (new course, activity outage, accuracy drop, or many inputs shifted) |
+| Challenger promoted | 1 (batch 07) |
+| Blocked by the fairness gate despite higher AUC | 2 (`05_GGG_2014B`, `06_AAA_2014J`) |
+| Final champion | v5 |
 
 ### Experiments: cutoff day and demographics
 
@@ -189,14 +194,9 @@ demographics gives a small AUC gain but does not consistently narrow the disabil
 
 ### AWS replay
 
-The same 13-batch replay ran on the k3s instance: 13 of 13 retrains triggered, 5 promotions
-(champion v1 to v11), and 2 challengers blocked by the fairness gate (`05_GGG_2014B`, `10_EEE_2014J`).
-Results differ slightly from the local run because model training is not identical across machines.
+The AWS instance ran an earlier version of the pipeline, before the drift alarm fix, so its history
+differs (13 of 13 retrains). It will be re-run with the fixed pipeline; the numbers above are from the local run.
 
-Caveats: the drift monitor fires on every batch because each batch is a single module while the
-reference mixes several (`code_module` itself is excluded from the drift share, other features still
-differ by module). A per-module reference (Phase 5.5, fix 2) would be the next improvement. Small
-groups make per-batch recall gaps noisy; always read them next to group sizes.
 Docker check: the container returns scores identical to the local run; image size 747 MB.
 
 ## Run it locally

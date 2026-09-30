@@ -1,0 +1,284 @@
+{
+  "next_index": 13,
+  "champion_version": "5",
+  "baseline_auc": 0.6317257217847769,
+  "history": [
+    {
+      "batch": "00_BBB_2014B",
+      "rows": 1282,
+      "drift_share": 0.154,
+      "drifted": [
+        "click_trend",
+        "clicks_oucontent",
+        "clicks_prev_7d",
+        "clicks_quiz"
+      ],
+      "champion_version": "1",
+      "champion_auc": 0.7561929191915436,
+      "champion_recall": 0.8144144144144144,
+      "champion_recall_gap": 0.007370932224125326,
+      "drift_trigger": false,
+      "perf_trigger": false,
+      "trigger_reasons": []
+    },
+    {
+      "batch": "01_CCC_2014B",
+      "rows": 1498,
+      "drift_share": 0.577,
+      "drifted": [
+        "click_trend",
+        "clicks_forumng",
+        "clicks_other",
+        "clicks_oucontent",
+        "clicks_quiz",
+        "clicks_subpage",
+        "clicks_url",
+        "date_registration",
+        "mean_days_early",
+        "mean_score",
+        "n_due",
+        "n_late",
+        "n_submitted",
+        "num_of_prev_attempts",
+        "studied_credits"
+      ],
+      "champion_version": "1",
+      "champion_auc": 0.8241444712385184,
+      "champion_recall": 0.9760479041916168,
+      "champion_recall_gap": 0.02604166666666663,
+      "drift_trigger": true,
+      "perf_trigger": false,
+      "trigger_reasons": [
+        "many inputs shifted",
+        "new course"
+      ],
+      "candidate_version": "2",
+      "candidate_auc": 0.819569909953848,
+      "candidate_recall_gap": 0.0163246268656716,
+      "beats_champion": false,
+      "passes_fairness": true,
+      "promoted": false
+    },
+    {
+      "batch": "02_DDD_2014B",
+      "rows": 1030,
+      "drift_share": 0.269,
+      "drifted": [
+        "clicks_url",
+        "date_registration",
+        "mean_days_early",
+        "n_due",
+        "n_late",
+        "n_submitted",
+        "score_trend"
+      ],
+      "champion_version": "1",
+      "champion_auc": 0.8100038267867495,
+      "champion_recall": 0.8366606170598911,
+      "champion_recall_gap": 0.08573209736000431,
+      "drift_trigger": false,
+      "perf_trigger": false,
+      "trigger_reasons": []
+    },
+    {
+      "batch": "03_EEE_2014B",
+      "rows": 605,
+      "drift_share": 0.077,
+      "drifted": [
+        "clicks_other",
+        "date_registration"
+      ],
+      "champion_version": "1",
+      "champion_auc": 0.7607075088099755,
+      "champion_recall": 0.6451612903225806,
+      "champion_recall_gap": 0.04525862068965514,
+      "drift_trigger": false,
+      "perf_trigger": false,
+      "trigger_reasons": []
+    },
+    {
+      "batch": "04_FFF_2014B",
+      "rows": 1302,
+      "drift_share": 0.077,
+      "drifted": [
+        "click_trend",
+        "clicks_prev_7d"
+      ],
+      "champion_version": "1",
+      "champion_auc": 0.7762121512440066,
+      "champion_recall": 0.8348765432098766,
+      "champion_recall_gap": 0.0033430643186740383,
+      "drift_trigger": false,
+      "perf_trigger": false,
+      "trigger_reasons": []
+    },
+    {
+      "batch": "05_GGG_2014B",
+      "rows": 796,
+      "drift_share": 0.115,
+      "drifted": [
+        "active_days",
+        "clicks_total",
+        "date_registration"
+      ],
+      "champion_version": "1",
+      "champion_auc": 0.6608444514618037,
+      "champion_recall": 0.8867924528301887,
+      "champion_recall_gap": 0.0286406697510464,
+      "drift_trigger": true,
+      "perf_trigger": true,
+      "trigger_reasons": [
+        "activity outage",
+        "accuracy drop"
+      ],
+      "candidate_version": "3",
+      "candidate_auc": 0.6725645377753217,
+      "candidate_recall_gap": 0.10861423220973787,
+      "beats_champion": true,
+      "passes_fairness": false,
+      "promoted": false
+    },
+    {
+      "batch": "06_AAA_2014J",
+      "rows": 348,
+      "drift_share": 0.038,
+      "drifted": [
+        "date_registration"
+      ],
+      "champion_version": "1",
+      "champion_auc": 0.7274391512377782,
+      "champion_recall": 0.6526315789473685,
+      "champion_recall_gap": 0.014981273408239626,
+      "drift_trigger": false,
+      "perf_trigger": true,
+      "trigger_reasons": [
+        "accuracy drop"
+      ],
+      "candidate_version": "4",
+      "candidate_auc": 0.7300187226960682,
+      "candidate_recall_gap": 0.14981273408239693,
+      "beats_champion": true,
+      "passes_fairness": false,
+      "promoted": false
+    },
+    {
+      "batch": "07_BBB_2014J",
+      "rows": 1787,
+      "drift_share": 0.231,
+      "drifted": [
+        "clicks_forumng",
+        "clicks_oucontent",
+        "clicks_quiz",
+        "clicks_url",
+        "mean_days_early",
+        "mean_score"
+      ],
+      "champion_version": "1",
+      "champion_auc": 0.6295781386701662,
+      "champion_recall": 0.6188976377952756,
+      "champion_recall_gap": 0.036400916014272755,
+      "drift_trigger": false,
+      "perf_trigger": true,
+      "trigger_reasons": [
+        "accuracy drop"
+      ],
+      "candidate_version": "5",
+      "candidate_auc": 0.6317257217847769,
+      "candidate_recall_gap": 0.04167332374713739,
+      "beats_champion": true,
+      "passes_fairness": true,
+      "promoted": true
+    },
+    {
+      "batch": "08_CCC_2014J",
+      "rows": 2021,
+      "drift_share": 0.115,
+      "drifted": [
+        "date_registration",
+        "mean_days_early",
+        "mean_score"
+      ],
+      "champion_version": "5",
+      "champion_auc": 0.8013892017354004,
+      "champion_recall": 0.8926441351888668,
+      "champion_recall_gap": 0.014459985948776954,
+      "drift_trigger": false,
+      "perf_trigger": false,
+      "trigger_reasons": []
+    },
+    {
+      "batch": "09_DDD_2014J",
+      "rows": 1463,
+      "drift_share": 0.385,
+      "drifted": [
+        "click_trend",
+        "clicks_last_7d",
+        "clicks_other",
+        "clicks_subpage",
+        "clicks_url",
+        "mean_days_early",
+        "n_due",
+        "n_late",
+        "n_submitted",
+        "score_trend"
+      ],
+      "champion_version": "5",
+      "champion_auc": 0.7849075704887926,
+      "champion_recall": 0.8241430700447094,
+      "champion_recall_gap": 0.027831061753323172,
+      "drift_trigger": true,
+      "perf_trigger": false,
+      "trigger_reasons": [
+        "many inputs shifted"
+      ],
+      "candidate_version": "6",
+      "candidate_auc": 0.7840043505095664,
+      "candidate_recall_gap": 0.01968702675416456,
+      "beats_champion": false,
+      "passes_fairness": true,
+      "promoted": false
+    },
+    {
+      "batch": "10_EEE_2014J",
+      "rows": 1021,
+      "drift_share": 0.0,
+      "drifted": [],
+      "champion_version": "5",
+      "champion_auc": 0.7725219948982248,
+      "champion_recall": 0.6765578635014837,
+      "champion_recall_gap": 0.11003584229390684,
+      "drift_trigger": false,
+      "perf_trigger": false,
+      "trigger_reasons": []
+    },
+    {
+      "batch": "11_FFF_2014J",
+      "rows": 1859,
+      "drift_share": 0.0,
+      "drifted": [],
+      "champion_version": "5",
+      "champion_auc": 0.7910435875841866,
+      "champion_recall": 0.8355795148247979,
+      "champion_recall_gap": 0.035912698412698396,
+      "drift_trigger": false,
+      "perf_trigger": false,
+      "trigger_reasons": []
+    },
+    {
+      "batch": "12_GGG_2014J",
+      "rows": 717,
+      "drift_share": 0.038,
+      "drifted": [
+        "date_registration"
+      ],
+      "champion_version": "5",
+      "champion_auc": 0.6737781737781738,
+      "champion_recall": 0.63003663003663,
+      "champion_recall_gap": 0.027291997880233176,
+      "drift_trigger": false,
+      "perf_trigger": false,
+      "trigger_reasons": []
+    }
+  ],
+  "trained_through": 6
+}

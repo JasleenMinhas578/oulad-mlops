@@ -10,3 +10,5 @@ mlruns/
 artifacts/*
 !artifacts/.gitkeep
 sample.json
+!dashboard/snapshot/
+!dashboard/snapshot/**

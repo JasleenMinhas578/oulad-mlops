@@ -4,12 +4,16 @@ Shows the measured results first, then how it works and how it is deployed. Ever
 from the same state, reports and model files the pipeline writes (local disk or S3)."""
 from __future__ import annotations
 
+import dataclasses
 import os
+import sys
+from pathlib import Path
 
 import diagrams
 import pandas as pd
 import streamlit as st
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))  # so Streamlit Cloud finds oulad
 from oulad import outcomes, storage
 from oulad.config import Settings
 from oulad.evaluate import fairness_audit
@@ -18,6 +22,15 @@ from oulad.stream import load_state
 
 LABEL = "at_risk"
 S = Settings.from_env()
+SNAPSHOT = Path(__file__).resolve().parent / "snapshot"
+# On Streamlit Cloud there is no pipeline output or S3 access, so read the saved snapshot instead.
+USING_SNAPSHOT = (
+    not storage.is_s3(S.data_uri)
+    and not Path(S.data_uri, "state", "stream_state.json").exists()
+    and (SNAPSHOT / "data" / "state" / "stream_state.json").exists()
+)
+if USING_SNAPSHOT:
+    S = dataclasses.replace(S, data_uri=str(SNAPSHOT / "data"), models_uri=str(SNAPSHOT / "models"))
 # The pipeline injects a fake engagement drop into one batch to prove the monitor fires.
 # That batch is excluded from the real-world results.
 INJECTED = f"{int(os.getenv('INJECT_DRIFT_AT', '5')):02d}_"
@@ -112,6 +125,9 @@ st.markdown(
     "used to check the model treats everyone fairly."
 )
 
+if USING_SNAPSHOT:
+    st.info("Showing a saved copy of the pipeline's results from the AWS-hosted project.")
+
 st.subheader("The result")
 st.caption(
     f"Measured on {len(real_batches)} course batches from 2014 that the model had never seen "
@@ -147,14 +163,16 @@ st.markdown(
 
 with st.container(border=True):
     st.markdown("**What did not work as hoped (honest findings)**")
-    drift_batches = int(history["drift_trigger"].sum())
+    retrains = int(sum(bool(r) for r in history["trigger_reasons"]))
     st.markdown(
         f"- **Automatic retraining did not measurably improve accuracy.** The first model, never "
         f"retrained, scored {auc_v1:.3f} AUC on the same 2014 batches; the retrained system scored "
         f"{auc_now:.3f}. The value of the pipeline is control: no model goes live unless it passes an "
         f"accuracy check and a fairness check.\n"
-        f"- **The drift alarm is too sensitive.** It fired on {drift_batches} of {len(history)} batches, because "
-        "each batch is a single course compared with a mixed reference. It needs a per-course reference.\n"
+        f"- **The first drift alarm was too sensitive, and is now fixed.** It compared each single course with a mix of "
+        f"courses and fired on all 13 batches. Comparing with the same course fixed that: it now triggers a "
+        f"retrain on {retrains} of {len(history)} batches and catches the simulated outage. It was tuned on this same "
+        f"replay, so treat it as a fitted design, not an independent test.\n"
         "- **A simple baseline is almost as good.** Logistic regression scored 0.782 AUC against "
         "0.785 for LightGBM on the same split, so the choice of model matters little here.\n"
         "- **Accuracy is lower on new terms.** Validation AUC on 2013 was 0.785; on unseen 2014 batches "
@@ -214,7 +232,10 @@ with tab_try:
     st.subheader("Pick a course batch and see who is flagged, and why")
     batch_id = st.selectbox("Course batch (course code and term)", history["batch"].tolist())
     if batch_id.startswith(INJECTED):
-        st.warning("This batch had a simulated system outage injected to test the drift alarm.")
+        st.warning(
+            "The pipeline scored this batch after a simulated outage was injected to test the drift alarm. "
+            "The learners shown here are the clean originals."
+        )
     df = get_batch(batch_id).reset_index(drop=True)
     df["risk_score"] = score(champion, df)
     df["flagged"] = df["risk_score"] >= champion.threshold
@@ -267,7 +288,8 @@ with tab_how:
         "- **Who is scored:** learners still enrolled at day 28 (someone who already left cannot be helped).\n"
         "- **What counts as at risk:** the learner ends up with Fail or Withdrawn.\n"
         "- **Only the past is used:** every input comes from before day 28, so the model never peeks at the future.\n"
-        "- **When it retrains:** if at least 30% of the inputs have shifted, or accuracy drops 0.05 below the baseline.\n"
+        "- **When it retrains** (compared with the same course's training data): many inputs shifted (30% or more), "
+        "activity volume collapsed (an outage), the course is new to the model, or accuracy dropped 0.05 below the baseline.\n"
         "- **Threshold:** set to catch about 80% of at-risk learners, because missing a struggling learner "
         "costs more than sending one extra check-in message."
     )
@@ -347,9 +369,10 @@ with tab_model:
         "'Blocked: not fair enough' means a new model was more accurate but would have widened the gap "
         "in how well disabled and other learners are caught, so it was rejected."
     )
-    view = history[["batch", "rows", "drift_share", "champion_version", "outcome"]].rename(
+    history["why"] = [", ".join(r) if r else "no trigger" for r in history["trigger_reasons"]]
+    view = history[["batch", "rows", "drift_share", "why", "champion_version", "outcome"]].rename(
         columns={"batch": "Batch", "rows": "Learners", "drift_share": "Share of inputs that shifted",
-                 "champion_version": "Model used", "outcome": "Decision"}
+                 "why": "Why retrain was triggered", "champion_version": "Model used", "outcome": "Decision"}
     )
     st.dataframe(view, width="stretch", hide_index=True)
 

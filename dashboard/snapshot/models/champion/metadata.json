@@ -1,0 +1,47 @@
+{
+  "numeric": [
+    "clicks_total",
+    "active_days",
+    "clicks_pre_start",
+    "clicks_last_7d",
+    "clicks_prev_7d",
+    "click_trend",
+    "days_since_last_active",
+    "never_active",
+    "clicks_oucontent",
+    "clicks_forumng",
+    "clicks_homepage",
+    "clicks_quiz",
+    "clicks_resource",
+    "clicks_subpage",
+    "clicks_url",
+    "clicks_other",
+    "n_due",
+    "n_submitted",
+    "n_missed",
+    "n_late",
+    "mean_score",
+    "score_trend",
+    "mean_days_early",
+    "date_registration",
+    "num_of_prev_attempts",
+    "studied_credits"
+  ],
+  "categorical": [
+    "code_module"
+  ],
+  "categories": {
+    "code_module": [
+      "AAA",
+      "BBB",
+      "CCC",
+      "DDD",
+      "EEE",
+      "FFF",
+      "GGG"
+    ]
+  },
+  "threshold": 0.3415672240431498,
+  "best_iteration": 177,
+  "model_version": "5"
+}
