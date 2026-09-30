@@ -2,10 +2,10 @@
 drift and fairness. Reads the same state, reports and model bundle the pipeline writes."""
 from __future__ import annotations
 
+import diagrams
 import pandas as pd
 import streamlit as st
 
-from dashboard import diagrams
 from oulad import storage
 from oulad.config import Settings
 from oulad.evaluate import fairness_audit
