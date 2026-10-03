@@ -126,7 +126,7 @@ st.markdown(
 )
 
 if USING_SNAPSHOT:
-    st.info("Showing a saved copy of the pipeline's results from the AWS-hosted project.")
+    st.info("Showing a saved copy of the pipeline's results from the full 2014 replay.")
 
 st.subheader("The result")
 st.caption(

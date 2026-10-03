@@ -1,5 +1,8 @@
 # AWS shutdown checklist
 
+> **Done on 2026-10-03.** All AWS resources below were deleted after the S3 data was backed up
+> locally (`aws-backup/`, not in git). Kept for reference if the project is ever redeployed.
+
 What to do when the AWS credits are about to run out. Start **two weeks before** the credit end date
 (the plan assumed February). Everything below is safe to do in order, and nothing else in the project
 depends on AWS: the code and the public dashboard keep working afterwards.

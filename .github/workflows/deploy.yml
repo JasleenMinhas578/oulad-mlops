@@ -1,12 +1,9 @@
 name: deploy
 
+# The AWS deployment was taken down on 2026-10-03, so this only runs when started by hand.
+# To redeploy, recreate the AWS resources (README, "Deploy to AWS") and restore these triggers:
+#   workflow_run (ci completed on main) and repository_dispatch (model-promoted).
 on:
-  workflow_run:
-    workflows: [ci]
-    types: [completed]
-    branches: [main]
-  repository_dispatch:
-    types: [model-promoted]
   workflow_dispatch:
 
 permissions:

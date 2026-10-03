@@ -12,3 +12,4 @@ artifacts/*
 sample.json
 !dashboard/snapshot/
 !dashboard/snapshot/**
+aws-backup/

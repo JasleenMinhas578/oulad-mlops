@@ -2,7 +2,8 @@
 
 Flags learners at risk of failing or withdrawing four weeks into a course, retrains itself when
 behaviour drifts, and audits every model for fairness toward learners who declared a disability.
-Free, open-source tools throughout; AWS is used only for hosting.
+Free, open-source tools throughout. AWS hosted the live system during the build; it was taken down on
+2026-10-03 once the results were recorded (see "Deploy to AWS").
 
 **Live dashboard:** https://oulad-mlops.streamlit.app/ (results, live prediction explorer, and how it is built and deployed)
 
@@ -202,7 +203,7 @@ Differences come from training not being bit-identical across machines: 2 promot
 the first of them decided on the simulated-outage batch), none blocked by the fairness gate, final champion v5.
 Headline results on the AWS data (12 real batches): 82% of at-risk learners caught, 63% flagged
 (23% fewer than a random list), 57% precision, disabled vs other learners caught 84% vs 82%, mean AUC 0.759.
-The public Streamlit dashboard shows the local run's snapshot; the AWS dashboard shows the AWS run.
+The public Streamlit dashboard shows the local run's snapshot. The AWS deployment has since been taken down.
 
 Docker check: the container returns scores identical to the local run; image size 747 MB.
 
@@ -226,9 +227,16 @@ AirPlay Receiver occupies 5000. `sqlalchemy<2.1` is pinned because MLflow 2.x do
 
 ## Deploy to AWS
 
-Follow Phase 9 of the build guide: S3 bucket, instance role, security group, EC2 `t3.medium` with k3s,
-GitHub OIDC role, `kubectl apply -k k8s/overlays/aws` (replace `__OWNER__` and `__BUCKET__` first).
-Set the secrets `AWS_DEPLOY_ROLE_ARN`, `AWS_REGION`, `EC2_INSTANCE_ID`. Tear down before credits end.
+The system ran on AWS (`ca-central-1`) during the build: one EC2 server running k3s with the API, the
+dashboard, MLflow and the pipeline CronJob, S3 for data and models, and keyless GitHub deploys through
+OIDC and SSM. It was **taken down on 2026-10-03** after the results above were recorded, so there is no live
+AWS endpoint now and the `deploy` workflow only runs when started by hand.
+
+To bring it back: create an S3 bucket, an instance role, a security group and an EC2 instance with k3s;
+replace the bucket and owner names in `k8s/overlays/aws/`; `kubectl apply -k k8s/overlays/aws`; set the
+secrets `AWS_DEPLOY_ROLE_ARN`, `AWS_REGION` and `EC2_INSTANCE_ID`; and restore the triggers in
+`.github/workflows/deploy.yml`. [docs/AWS_SHUTDOWN_CHECKLIST.md](docs/AWS_SHUTDOWN_CHECKLIST.md) lists every
+resource that was used.
 
 ## Design decisions
 
